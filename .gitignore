@@ -1,0 +1,21 @@
+node_modules/
+
+# Electron / build outputs
+/dist/
+/out/
+/build/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Env
+.env
+.env.*
+
+# LiveKit / local certs (if you don't want to commit them)
+*.pem
+*.key
