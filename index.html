@@ -77,6 +77,17 @@
           </div>
           <div>
             <div class="section-title">Entrées audio</div>
+            <div class="audio-roles">
+              <label>
+                <span>Micro Patient</span>
+                <select id="patientMicSelect"></select>
+              </label>
+              <label>
+                <span>Micro Stetho</span>
+                <select id="stethoMicSelect"></select>
+              </label>
+            </div>
+            <div class="inline-status hidden" id="audioConfigStatus"></div>
             <div class="device-list" id="micList"></div>
             <div class="muted">Max audio tracks: <span id="audioTrackCount">2</span></div>
           </div>
@@ -85,6 +96,7 @@
 
       <div class="modal-footer">
         <button id="refreshDevices" type="button">Refresh</button>
+        <button id="resetDevices" type="button">Reset</button>
         <div class="spacer"></div>
         <button id="cancelSettings" type="button">Annuler</button>
         <button id="saveSettings" class="primary" type="button">Enregistrer</button>

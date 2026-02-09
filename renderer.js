@@ -25,6 +25,9 @@ const saveSettingsBtn = document.getElementById('saveSettings');
 const cameraList = document.getElementById('cameraList');
 const micList = document.getElementById('micList');
 const audioTrackCountEl = document.getElementById('audioTrackCount');
+const patientMicSelect = document.getElementById('patientMicSelect');
+const stethoMicSelect = document.getElementById('stethoMicSelect');
+const audioConfigStatus = document.getElementById('audioConfigStatus');
 
 const startCallBtn = document.getElementById('startCall');
 const toggleMicBtn = document.getElementById('toggleMic');
@@ -33,6 +36,7 @@ const toggleStethoBtn = document.getElementById('toggleStetho');
 
 
 const refreshDevicesBtn = document.getElementById('refreshDevices');
+const resetDevicesBtn = document.getElementById('resetDevices');
 const leaveBtn = document.getElementById('leave');
 
 const localVideos = document.getElementById('localVideos');
@@ -67,6 +71,21 @@ function saveAudioSelection(sel) {
   localStorage.setItem(AUDIO_SELECTION_KEY, JSON.stringify(sel));
 }
 
+function setInlineAudioStatus(message, isError) {
+  if (!audioConfigStatus) return;
+  const msg = String(message || '').trim();
+  if (!msg) {
+    audioConfigStatus.classList.add('hidden');
+    audioConfigStatus.classList.remove('error');
+    audioConfigStatus.textContent = '';
+    return;
+  }
+  audioConfigStatus.textContent = msg;
+  audioConfigStatus.classList.remove('hidden');
+  if (isError) audioConfigStatus.classList.add('error');
+  else audioConfigStatus.classList.remove('error');
+}
+
 function findFirstAvailableMicId(excludeId = '') {
   const mics = Array.from(micList?.querySelectorAll?.('input[type="checkbox"][data-kind="mic"]') || [])
     .map((i) => i.getAttribute('data-id'))
@@ -97,7 +116,79 @@ function ensureAudioSelectionIsValid() {
 
   const next = { patientMicId, stethoMicId };
   saveAudioSelection(next);
+
+  if (checkedMicIds.length === 0) {
+    setInlineAudioStatus('Aucun micro sélectionné. Coche au moins 1 micro.', true);
+  } else if (!next.patientMicId) {
+    setInlineAudioStatus('Choisis un Micro Patient.', true);
+  } else if (!next.stethoMicId) {
+    setInlineAudioStatus('Choisis un Micro Stetho (optionnel si tu n\'envoies qu\'un audio).', false);
+  } else {
+    setInlineAudioStatus(`Patient + Stetho configurés.`, false);
+  }
+
   return next;
+}
+
+function renderAudioRoleDropdowns() {
+  if (!patientMicSelect || !stethoMicSelect) return;
+
+  const checkedMicIds = Array.from(micList.querySelectorAll('input[type="checkbox"][data-kind="mic"]'))
+    .filter((i) => i.checked)
+    .map((i) => i.getAttribute('data-id'))
+    .filter(Boolean);
+
+  const current = ensureAudioSelectionIsValid();
+
+  const buildOptions = (selectEl, selectedId, otherId) => {
+    selectEl.innerHTML = '';
+
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = '—';
+    selectEl.appendChild(empty);
+
+    for (const id of checkedMicIds) {
+      const opt = document.createElement('option');
+      opt.value = id;
+      const labelEl = micList.querySelector(`input[data-kind="mic"][data-id="${CSS.escape(id)}"]`)?.closest('label');
+      opt.textContent = labelEl?.querySelector('span')?.textContent || id;
+      if (id === otherId) opt.disabled = true;
+      selectEl.appendChild(opt);
+    }
+
+    selectEl.value = selectedId && checkedMicIds.includes(selectedId) ? selectedId : '';
+  };
+
+  buildOptions(patientMicSelect, current.patientMicId, current.stethoMicId);
+  buildOptions(stethoMicSelect, current.stethoMicId, current.patientMicId);
+
+  patientMicSelect.disabled = checkedMicIds.length === 0;
+  stethoMicSelect.disabled = checkedMicIds.length === 0;
+
+  patientMicSelect.onchange = () => {
+    const sel = loadAudioSelection();
+    sel.patientMicId = String(patientMicSelect.value || '');
+    if (sel.stethoMicId === sel.patientMicId) sel.stethoMicId = '';
+    saveAudioSelection(sel);
+    ensureAudioSelectionIsValid();
+    renderAudioRoleDropdowns();
+    renderAudioRoleSelectors();
+  };
+
+  stethoMicSelect.onchange = () => {
+    const sel = loadAudioSelection();
+    sel.stethoMicId = String(stethoMicSelect.value || '');
+    if (sel.patientMicId === sel.stethoMicId) sel.patientMicId = '';
+    saveAudioSelection(sel);
+    ensureAudioSelectionIsValid();
+    renderAudioRoleDropdowns();
+    renderAudioRoleSelectors();
+  };
+
+  if (checkedMicIds.length === 1) {
+    setInlineAudioStatus('Un seul micro coché: Patient OK, Stetho désactivé.', false);
+  }
 }
 
 function renderAudioRoleSelectors() {
@@ -321,6 +412,7 @@ async function listDevices() {
   }
 
   ensureAudioSelectionIsValid();
+  renderAudioRoleDropdowns();
   renderAudioRoleSelectors();
 
   return { cams, mics };
@@ -433,17 +525,23 @@ async function joinRoom() {
   if (audioTrackCount <= 0) {
     // publish no audio
   } else {
-    // We publish ONLY ONE audio track at a time: patient OR stetho.
-    // Device roles are defined in settings (patientMicId / stethoMicId).
-    // Fallback: use first checked mic.
+    // Publish TWO audio tracks (patient + stetho) if configured.
+    // The doctor can choose which one to listen to.
     const roleSel = ensureAudioSelectionIsValid();
-    let deviceId = roleSel.patientMicId;
-    if (!deviceId) {
-      const selected = dedupe(selectedAudioIds);
-      deviceId = selected[0] || '';
+    const patientId = roleSel.patientMicId || '';
+    const stethoId = roleSel.stethoMicId || '';
+
+    if (patientId) {
+      localTracks.push(await createLocalAudioTrack({ deviceId: patientId }));
+    } else {
+      localTracks.push(await createLocalAudioTrack());
     }
-    localTracks.push(deviceId ? await createLocalAudioTrack({ deviceId }) : await createLocalAudioTrack());
-    activeAudioMode = 'patient';
+
+    if (audioTrackCount >= 2) {
+      if (stethoId && stethoId !== patientId) {
+        localTracks.push(await createLocalAudioTrack({ deviceId: stethoId }));
+      }
+    }
   }
 
   setStatus('Connecting to room...');
@@ -474,19 +572,7 @@ async function joinRoom() {
 
   await room.connect(url, token);
 
-  if (getRole() === 'cart') {
-    room.on(RoomEvent.DataReceived, async (payload, participant) => {
-      try {
-        const msg = new TextDecoder().decode(payload);
-        const data = JSON.parse(msg);
-        if (data?.type !== 'audio_mode') return;
-        if (data?.mode !== 'patient' && data?.mode !== 'stetho') return;
-        await setPublishedAudioMode(data.mode);
-      } catch {
-        // ignore
-      }
-    });
-  }
+  // (audio switching handled on doctor side by muting/unmuting received audio tracks)
 
   // Hydrate already-present tracks (participants already in room)
   try {
@@ -521,14 +607,19 @@ async function joinRoom() {
     const deviceId = mediaTrack?.getSettings?.().deviceId;
     const label = deviceId ? (deviceLabelMap.get(deviceId) || deviceId) : (mediaTrack?.label || '');
     const kind = mediaTrack?.kind || 'track';
-    const name = kind === 'audio' ? `audio:${activeAudioMode}` : `${kind}:${label || 'default'}`;
+
+    let name = `${kind}:${label || 'default'}`;
+    if (kind === 'audio') {
+      const audioSel = loadAudioSelection();
+      const did = deviceId || '';
+      if (did && audioSel.patientMicId && did === audioSel.patientMicId) name = 'audio:patient';
+      else if (did && audioSel.stethoMicId && did === audioSel.stethoMicId) name = 'audio:stetho';
+      else if (!published.some((p) => p.kind === 'audio')) name = 'audio:patient';
+      else name = 'audio:stetho';
+    }
 
     const pub = await room.localParticipant.publishTrack(t, { name });
     published.push({ kind, name, deviceId: deviceId || null, sid: pub?.trackSid || pub?.sid || null });
-
-    if (kind === 'audio') {
-      publishedAudio = { track: t, pub };
-    }
   }
 
   setDebug({ publishedTracks: published });
@@ -577,6 +668,19 @@ refreshDevicesBtn.addEventListener('click', async () => {
   }
 });
 
+if (resetDevicesBtn) {
+  resetDevicesBtn.addEventListener('click', async () => {
+    try {
+      resetSelections();
+      await ensureDeviceLabels();
+      await listDevices();
+      setStatus('Selections reset');
+    } catch (e) {
+      setStatus(e?.message || String(e));
+    }
+  });
+}
+
 function openSettings() {
   settingsBackdrop.classList.remove('hidden');
   settingsModal.classList.remove('hidden');
@@ -599,6 +703,14 @@ function collectChecked() {
   return { cameras, mics };
 }
 
+function resetSelections() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(AUDIO_SELECTION_KEY);
+  } catch {}
+  setInlineAudioStatus('', false);
+}
+
 openSettingsBtn.addEventListener('click', () => openSettings());
 closeSettingsBtn.addEventListener('click', () => closeSettings());
 cancelSettingsBtn.addEventListener('click', () => closeSettings());
@@ -609,6 +721,8 @@ saveSettingsBtn.addEventListener('click', async () => {
     const sel = collectChecked();
     saveSelection(sel);
     ensureAudioSelectionIsValid();
+    renderAudioRoleDropdowns();
+    renderAudioRoleSelectors();
     setStatus('Settings saved');
     closeSettings();
   } catch (e) {
@@ -635,9 +749,12 @@ startCallBtn.addEventListener('click', async () => {
 
 toggleMicBtn.addEventListener('click', async () => {
   micEnabled = !micEnabled;
-  if (publishedAudio?.track) {
-    if (micEnabled) await publishedAudio.track.unmute();
-    else await publishedAudio.track.mute();
+  for (const t of localTracks) {
+    const kind = t?.mediaStreamTrack?.kind;
+    if (kind === 'audio') {
+      if (micEnabled) await t.unmute();
+      else await t.mute();
+    }
   }
   toggleMicBtn.textContent = `Mic: ${micEnabled ? 'on' : 'off'}`;
 });
