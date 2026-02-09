@@ -212,9 +212,9 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .stage {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-columns: 1fr 420px;
   gap: 12px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .remote-main {
@@ -228,17 +228,18 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   height: min(68vh, 760px);
 }
 
-.remote-thumbs {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: 10px;
-  align-items: flex-start;
+.side {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 12px;
+  align-content: start;
 }
 
-.remote-thumbs .tile {
-  flex: 0 0 220px;
+.remote-thumbs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
 }
 
 .remote-thumbs .tile video {
@@ -246,12 +247,6 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   height: 140px;
 }
 
-.bottom-strip {
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 12px;
-  align-items: start;
-}
 
 .audio-dock {
   margin-top: 12px;
