@@ -755,7 +755,13 @@ async function joinRoom() {
 
     if (audioTrackCount >= 2) {
       if (stethoId && stethoId !== patientId) {
-        localTracks.push(await buildProcessedStethoTrack(stethoId));
+        localTracks.push(await createLocalAudioTrack({
+          deviceId: stethoId,
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          channelCount: 1,
+        }));
       }
     }
   }
@@ -862,8 +868,6 @@ async function leaveRoom() {
       try { t.stop(); } catch {}
     }
     localTracks = [];
-
-    await teardownStethoProcessing();
 
     if (localVideos) localVideos.innerHTML = '';
 
