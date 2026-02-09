@@ -229,13 +229,16 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 
 .remote-thumbs {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(160px, 220px);
-  grid-template-rows: 1fr;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   overflow-x: auto;
   gap: 10px;
-  align-items: start;
+  align-items: flex-start;
+}
+
+.remote-thumbs .tile {
+  flex: 0 0 220px;
 }
 
 .remote-thumbs .tile video {
