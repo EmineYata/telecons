@@ -87,6 +87,23 @@
                 <select id="stethoMicSelect"></select>
               </label>
             </div>
+            <div class="audio-roles">
+              <label>
+                <span>Preset Stetho</span>
+                <select id="stethoPreset">
+                  <option value="heart">Cœur</option>
+                  <option value="lung">Poumon</option>
+                  <option value="wide">Large bande</option>
+                </select>
+              </label>
+              <label>
+                <span>Notch</span>
+                <select id="stethoNotch">
+                  <option value="50">50 Hz</option>
+                  <option value="60">60 Hz</option>
+                </select>
+              </label>
+            </div>
             <div class="inline-status hidden" id="audioConfigStatus"></div>
             <div class="device-list" id="micList"></div>
             <div class="muted">Max audio tracks: <span id="audioTrackCount">2</span></div>

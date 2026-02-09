@@ -3,6 +3,7 @@ import {
   RoomEvent,
   createLocalAudioTrack,
   createLocalVideoTrack,
+  LocalAudioTrack,
 } from 'https://unpkg.com/livekit-client@2.7.2/dist/livekit-client.esm.mjs';
 
 import { desktopConfig } from './config.js';
@@ -28,6 +29,8 @@ const audioTrackCountEl = document.getElementById('audioTrackCount');
 const patientMicSelect = document.getElementById('patientMicSelect');
 const stethoMicSelect = document.getElementById('stethoMicSelect');
 const audioConfigStatus = document.getElementById('audioConfigStatus');
+const stethoPresetSelect = document.getElementById('stethoPreset');
+const stethoNotchSelect = document.getElementById('stethoNotch');
 
 const startCallBtn = document.getElementById('startCall');
 const toggleMicBtn = document.getElementById('toggleMic');
@@ -52,6 +55,140 @@ let publishedAudio = null;
 const STORAGE_KEY = 'desktopversion.deviceSelection.v1';
 
 const AUDIO_SELECTION_KEY = 'desktopversion.audioSelection.v1';
+const STETHO_PRESET_KEY = 'desktopversion.stethoPreset.v1';
+
+let stethoAudioContext = null;
+let stethoGraph = null;
+let stethoRawTrack = null;
+let stethoProcessedTrack = null;
+let stethoLocalAudioTrack = null;
+
+function loadStethoPreset() {
+  try {
+    const raw = localStorage.getItem(STETHO_PRESET_KEY);
+    if (!raw) return { preset: 'heart', notchHz: 50 };
+    const p = JSON.parse(raw);
+    const preset = ['heart', 'lung', 'wide'].includes(p?.preset) ? p.preset : 'heart';
+    const notchHz = Number(p?.notchHz) === 60 ? 60 : 50;
+    return { preset, notchHz };
+  } catch {
+    return { preset: 'heart', notchHz: 50 };
+  }
+}
+
+function saveStethoPreset(v) {
+  localStorage.setItem(STETHO_PRESET_KEY, JSON.stringify(v));
+}
+
+function getPresetParams() {
+  const { preset, notchHz } = loadStethoPreset();
+  if (preset === 'lung') {
+    return { preset, notchHz, hp: 100, lp: 1800, gainDb: 12 };
+  }
+  if (preset === 'wide') {
+    return { preset, notchHz, hp: 20, lp: 2000, gainDb: 6 };
+  }
+  return { preset: 'heart', notchHz, hp: 25, lp: 180, gainDb: 18 };
+}
+
+function applyStethoPresetToGraph() {
+  if (!stethoGraph) return;
+  const p = getPresetParams();
+  stethoGraph.hp.frequency.value = p.hp;
+  stethoGraph.lp.frequency.value = p.lp;
+  stethoGraph.notch.frequency.value = p.notchHz;
+  stethoGraph.notch2.frequency.value = p.notchHz * 2;
+  stethoGraph.gain.gain.value = Math.pow(10, p.gainDb / 20);
+}
+
+async function buildProcessedStethoTrack(deviceId) {
+  if (stethoLocalAudioTrack) return stethoLocalAudioTrack;
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: deviceId ? {
+      deviceId: { exact: deviceId },
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      channelCount: 1,
+    } : {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      channelCount: 1,
+    },
+    video: false,
+  });
+  stethoRawTrack = stream.getAudioTracks()[0] || null;
+  if (!stethoRawTrack) throw new Error('No stetho audio track');
+
+  stethoAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    if (stethoAudioContext.state === 'suspended') await stethoAudioContext.resume();
+  } catch {}
+  const src = stethoAudioContext.createMediaStreamSource(new MediaStream([stethoRawTrack]));
+  const hp = stethoAudioContext.createBiquadFilter();
+  hp.type = 'highpass';
+  const lp = stethoAudioContext.createBiquadFilter();
+  lp.type = 'lowpass';
+  const notch = stethoAudioContext.createBiquadFilter();
+  notch.type = 'notch';
+  const notch2 = stethoAudioContext.createBiquadFilter();
+  notch2.type = 'notch';
+  const gain = stethoAudioContext.createGain();
+  const dest = stethoAudioContext.createMediaStreamDestination();
+
+  src.connect(hp);
+  hp.connect(notch);
+  notch.connect(notch2);
+  notch2.connect(lp);
+  lp.connect(gain);
+  gain.connect(dest);
+
+  stethoGraph = { src, hp, lp, notch, notch2, gain, dest };
+  applyStethoPresetToGraph();
+
+  stethoProcessedTrack = dest.stream.getAudioTracks()[0] || null;
+  if (!stethoProcessedTrack) throw new Error('No processed stetho track');
+
+  stethoLocalAudioTrack = new LocalAudioTrack(stethoProcessedTrack);
+  return stethoLocalAudioTrack;
+}
+
+async function teardownStethoProcessing() {
+  try {
+    if (stethoLocalAudioTrack) {
+      try { stethoLocalAudioTrack.stop(); } catch {}
+    }
+  } finally {
+    stethoLocalAudioTrack = null;
+  }
+
+  try {
+    if (stethoProcessedTrack) {
+      try { stethoProcessedTrack.stop(); } catch {}
+    }
+  } finally {
+    stethoProcessedTrack = null;
+  }
+
+  try {
+    if (stethoRawTrack) {
+      try { stethoRawTrack.stop(); } catch {}
+    }
+  } finally {
+    stethoRawTrack = null;
+  }
+
+  try {
+    if (stethoAudioContext) {
+      try { await stethoAudioContext.close(); } catch {}
+    }
+  } finally {
+    stethoAudioContext = null;
+    stethoGraph = null;
+  }
+}
 
 function loadAudioSelection() {
   try {
@@ -65,6 +202,29 @@ function loadAudioSelection() {
   } catch {
     return { patientMicId: '', stethoMicId: '' };
   }
+}
+
+function hydrateStethoPresetUi() {
+  if (!stethoPresetSelect || !stethoNotchSelect) return;
+  const p = loadStethoPreset();
+  stethoPresetSelect.value = p.preset;
+  stethoNotchSelect.value = String(p.notchHz);
+
+  stethoPresetSelect.onchange = () => {
+    const cur = loadStethoPreset();
+    const preset = ['heart', 'lung', 'wide'].includes(String(stethoPresetSelect.value))
+      ? String(stethoPresetSelect.value)
+      : cur.preset;
+    saveStethoPreset({ preset, notchHz: cur.notchHz });
+    applyStethoPresetToGraph();
+  };
+
+  stethoNotchSelect.onchange = () => {
+    const cur = loadStethoPreset();
+    const notchHz = Number(stethoNotchSelect.value) === 60 ? 60 : 50;
+    saveStethoPreset({ preset: cur.preset, notchHz });
+    applyStethoPresetToGraph();
+  };
 }
 
 function saveAudioSelection(sel) {
@@ -413,6 +573,7 @@ async function listDevices() {
 
   ensureAudioSelectionIsValid();
   renderAudioRoleDropdowns();
+  hydrateStethoPresetUi();
   renderAudioRoleSelectors();
 
   return { cams, mics };
@@ -539,7 +700,7 @@ async function joinRoom() {
 
     if (audioTrackCount >= 2) {
       if (stethoId && stethoId !== patientId) {
-        localTracks.push(await createLocalAudioTrack({ deviceId: stethoId }));
+        localTracks.push(await buildProcessedStethoTrack(stethoId));
       }
     }
   }
@@ -612,7 +773,8 @@ async function joinRoom() {
     if (kind === 'audio') {
       const audioSel = loadAudioSelection();
       const did = deviceId || '';
-      if (did && audioSel.patientMicId && did === audioSel.patientMicId) name = 'audio:patient';
+      if (t === stethoLocalAudioTrack) name = 'audio:stetho';
+      else if (did && audioSel.patientMicId && did === audioSel.patientMicId) name = 'audio:patient';
       else if (did && audioSel.stethoMicId && did === audioSel.stethoMicId) name = 'audio:stetho';
       else if (!published.some((p) => p.kind === 'audio')) name = 'audio:patient';
       else name = 'audio:stetho';
@@ -645,6 +807,8 @@ async function leaveRoom() {
       try { t.stop(); } catch {}
     }
     localTracks = [];
+
+    await teardownStethoProcessing();
 
     if (localVideos) localVideos.innerHTML = '';
 
