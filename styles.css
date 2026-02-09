@@ -211,10 +211,9 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 
 .stage {
-  display: grid;
-  grid-template-columns: 1fr 420px;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  align-items: start;
 }
 
 .remote-main {
@@ -224,29 +223,37 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 
 .remote-main .tile video {
+  width: 100%;
   aspect-ratio: auto;
-  height: min(68vh, 760px);
+  height: min(62vh, 680px);
+  object-fit: cover;
 }
 
-.side {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  gap: 12px;
-  align-content: start;
+.bottom-bar {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: flex-start;
+  overflow-x: auto;
 }
 
 .remote-thumbs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: row;
   gap: 10px;
-  align-items: start;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.remote-thumbs .tile {
+  flex: 0 0 200px;
 }
 
 .remote-thumbs .tile video {
-  aspect-ratio: 16 / 9;
-  height: 140px;
+  width: 200px;
+  height: 112px;
+  object-fit: cover;
 }
-
 
 .audio-dock {
   margin-top: 12px;
@@ -296,6 +303,7 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   background: rgba(255,255,255,0.04);
   border-radius: 14px;
   padding: 10px;
+  flex: 0 0 200px;
 }
 
 .local-videos {
