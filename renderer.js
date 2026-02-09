@@ -534,7 +534,14 @@ function getVideoContainerForParticipant(participant) {
 
   // On the cart app, make the doctor video the main focus.
   if (role === 'cart') {
-    return isDoc ? remoteDoctor : remoteCartVideos;
+    // Prefer identities that look like the doctor.
+    if (isDoc) return remoteDoctor;
+
+    // Fallback: if we still don't have a main remote video, use the first remote video as main.
+    const hasMain = !!remoteDoctor?.querySelector?.('.tile');
+    if (!hasMain) return remoteDoctor;
+
+    return remoteCartVideos;
   }
 
   // On the doctor app (if used in desktop mode), keep carts as main by default.
