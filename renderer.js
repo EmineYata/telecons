@@ -570,20 +570,41 @@ function attachRemoteTrack(track, pub, participant) {
   if (track.kind === 'video') {
     const container = getVideoContainerForParticipant(participant);
     if (!container) return;
+    const isThumb = container === remoteCartVideos;
     const wrap = document.createElement('div');
     wrap.className = 'tile';
     wrap.dataset.id = id;
     wrap.dataset.identity = participant.identity;
     if (sid) wrap.dataset.trackSid = sid;
+    if (isThumb) {
+      wrap.style.flex = '0 0 200px';
+      wrap.style.width = '200px';
+      wrap.style.maxWidth = '200px';
+      wrap.style.minWidth = '200px';
+    }
     const v = track.attach();
     v.autoplay = true;
     v.playsInline = true;
+    if (isThumb) {
+      v.style.width = '200px';
+      v.style.height = '112px';
+      v.style.objectFit = 'cover';
+    }
     wrap.appendChild(v);
     const lab = document.createElement('div');
     lab.className = 'label';
     lab.textContent = participant.identity;
     wrap.appendChild(lab);
     container.appendChild(wrap);
+
+    // Force the thumbs container to be a horizontal row
+    if (isThumb && remoteCartVideos) {
+      remoteCartVideos.style.display = 'flex';
+      remoteCartVideos.style.flexDirection = 'row';
+      remoteCartVideos.style.flexWrap = 'nowrap';
+      remoteCartVideos.style.gap = '10px';
+      remoteCartVideos.style.alignItems = 'flex-start';
+    }
   }
 
   if (track.kind === 'audio') {
@@ -903,6 +924,18 @@ async function joinRoom() {
 
   homeView.classList.add('hidden');
   callView.classList.remove('hidden');
+
+  // Force bottom-bar to horizontal row (inline styles override any CSS issues)
+  const bottomBar = document.querySelector('.bottom-bar');
+  if (bottomBar) {
+    bottomBar.style.display = 'flex';
+    bottomBar.style.flexDirection = 'row';
+    bottomBar.style.flexWrap = 'nowrap';
+    bottomBar.style.gap = '10px';
+    bottomBar.style.alignItems = 'flex-start';
+    bottomBar.style.overflowX = 'auto';
+    bottomBar.style.width = '100%';
+  }
 
   leaveBtn.disabled = false;
   setStatus('Joined');
