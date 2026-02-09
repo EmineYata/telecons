@@ -523,29 +523,11 @@ function setDebug(obj) {
   debugEl.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
 }
 
-function isDoctorIdentity(identity) {
-  const id = String(identity || '').toLowerCase();
-  return id.includes('doctor') || id.includes('medecin') || id.includes('médecin');
-}
-
-function getVideoContainerForParticipant(participant) {
-  const role = getRole();
-  const isDoc = isDoctorIdentity(participant?.identity);
-
-  // On the cart app, make the doctor video the main focus.
-  if (role === 'cart') {
-    // Prefer identities that look like the doctor.
-    if (isDoc) return remoteDoctor;
-
-    // Fallback: if we still don't have a main remote video, use the first remote video as main.
-    const hasMain = !!remoteDoctor?.querySelector?.('.tile');
-    if (!hasMain) return remoteDoctor;
-
-    return remoteCartVideos;
-  }
-
-  // On the doctor app (if used in desktop mode), keep carts as main by default.
-  return isDoc ? remoteCartVideos : remoteDoctor;
+function getVideoContainer() {
+  // First remote video goes big (remoteDoctor). All others go small (remoteCartVideos).
+  const hasMain = remoteDoctor && remoteDoctor.querySelector('[data-track-sid], [data-id]');
+  if (!hasMain) return remoteDoctor;
+  return remoteCartVideos;
 }
 
 function attachRemoteTrack(track, pub, participant) {
@@ -568,9 +550,10 @@ function attachRemoteTrack(track, pub, participant) {
   }
 
   if (track.kind === 'video') {
-    const container = getVideoContainerForParticipant(participant);
+    const container = getVideoContainer();
     if (!container) return;
     const isThumb = container === remoteCartVideos;
+    console.log('[ATTACH VIDEO]', participant.identity, 'isThumb=', isThumb, 'container=', container.id);
     const wrap = document.createElement('div');
     wrap.className = 'tile';
     wrap.dataset.id = id;
