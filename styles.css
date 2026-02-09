@@ -217,11 +217,27 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   align-items: start;
 }
 
-#remoteGrid,
-#remoteVideos {
+.remote-main {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
+}
+
+.side {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+  align-content: start;
+}
+
+.remote-thumbs {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.remote-thumbs .tile video {
+  aspect-ratio: 16 / 9;
 }
 
 .audio-dock {

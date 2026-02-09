@@ -15,7 +15,8 @@ const roomInfo = document.getElementById('roomInfo');
 
 const homeView = document.getElementById('homeView');
 const callView = document.getElementById('callView');
-const remoteVideos = document.getElementById('remoteVideos');
+const remoteDoctor = document.getElementById('remoteDoctor');
+const remoteCartVideos = document.getElementById('remoteCartVideos');
 const remoteAudioDock = document.getElementById('remoteAudioDock');
 
 const openSettingsBtn = document.getElementById('openSettings');
@@ -37,7 +38,6 @@ const startCallBtn = document.getElementById('startCall');
 const toggleMicBtn = document.getElementById('toggleMic');
 const toggleCamBtn = document.getElementById('toggleCam');
 const toggleStethoBtn = document.getElementById('toggleStetho');
-
 
 const refreshDevicesBtn = document.getElementById('refreshDevices');
 const resetDevicesBtn = document.getElementById('resetDevices');
@@ -523,6 +523,24 @@ function setDebug(obj) {
   debugEl.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
 }
 
+function isDoctorIdentity(identity) {
+  const id = String(identity || '').toLowerCase();
+  return id.includes('doctor') || id.includes('medecin') || id.includes('médecin');
+}
+
+function getVideoContainerForParticipant(participant) {
+  const role = getRole();
+  const isDoc = isDoctorIdentity(participant?.identity);
+
+  // On the cart app, make the doctor video the main focus.
+  if (role === 'cart') {
+    return isDoc ? remoteDoctor : remoteCartVideos;
+  }
+
+  // On the doctor app (if used in desktop mode), keep carts as main by default.
+  return isDoc ? remoteCartVideos : remoteDoctor;
+}
+
 function attachRemoteTrack(track, pub, participant) {
   if (!participant || !track) return;
   const sid = pub?.trackSid || pub?.sid || track?.sid || '';
@@ -531,16 +549,20 @@ function attachRemoteTrack(track, pub, participant) {
 
   // De-dupe: hydration + TrackSubscribed can both call attach.
   if (sid) {
-    const existing = (track.kind === 'video' ? remoteVideos : remoteAudioDock)
+    const root = track.kind === 'video' ? document : remoteAudioDock;
+    const existing = root
       ?.querySelector?.(`[data-track-sid="${CSS.escape(sid)}"][data-identity="${CSS.escape(participant.identity)}"]`);
     if (existing) return;
   }
-  const existingById = (track.kind === 'video' ? remoteVideos : remoteAudioDock)
-    ?.querySelector?.(`[data-id="${CSS.escape(id)}"]`);
-  if (existingById) return;
+  {
+    const root = track.kind === 'video' ? document : remoteAudioDock;
+    const existingById = root?.querySelector?.(`[data-id="${CSS.escape(id)}"]`);
+    if (existingById) return;
+  }
 
   if (track.kind === 'video') {
-    if (!remoteVideos) return;
+    const container = getVideoContainerForParticipant(participant);
+    if (!container) return;
     const wrap = document.createElement('div');
     wrap.className = 'tile';
     wrap.dataset.id = id;
@@ -554,7 +576,7 @@ function attachRemoteTrack(track, pub, participant) {
     lab.className = 'label';
     lab.textContent = participant.identity;
     wrap.appendChild(lab);
-    remoteVideos.appendChild(wrap);
+    container.appendChild(wrap);
   }
 
   if (track.kind === 'audio') {
@@ -573,7 +595,8 @@ function detachRemoteTrack(track, pub, participant) {
   const sid = pub?.trackSid || pub?.sid || track?.sid;
   if (!sid || !participant?.identity) return;
   const sel = `[data-track-sid="${CSS.escape(sid)}"][data-identity="${CSS.escape(participant.identity)}"]`;
-  remoteVideos?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
+  remoteDoctor?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
+  remoteCartVideos?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
   remoteAudioDock?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
 }
 
@@ -808,7 +831,8 @@ async function joinRoom() {
   room.on(RoomEvent.ParticipantDisconnected, (participant) => {
     if (!participant?.identity) return;
     const sel = `[data-identity="${CSS.escape(participant.identity)}"]`;
-    remoteVideos?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
+    remoteDoctor?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
+    remoteCartVideos?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
     remoteAudioDock?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
   });
 
@@ -892,7 +916,8 @@ async function leaveRoom() {
     if (localVideos) localVideos.innerHTML = '';
 
     leaveBtn.disabled = true;
-    if (remoteVideos) remoteVideos.innerHTML = '';
+    if (remoteDoctor) remoteDoctor.innerHTML = '';
+    if (remoteCartVideos) remoteCartVideos.innerHTML = '';
     if (remoteAudioDock) remoteAudioDock.innerHTML = '';
     callView.classList.add('hidden');
     homeView.classList.remove('hidden');
