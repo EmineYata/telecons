@@ -1,128 +1,3 @@
-<!-- <!doctype html>
-<html lang="fr">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Desktop Version - LiveKit</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <header class="topbar">
-      <div class="brand">MeetingManager Desktop</div>
-      <div class="topbar-right">
-        <button id="openSettings" class="icon-btn" type="button" title="Settings">
-          <span class="icon">⚙</span>
-        </button>
-      </div>
-    </header>
-
-    <main>
-      <section class="home" id="homeView">
-        <div class="home-inner">
-          <div class="home-card">
-            <div class="home-title">Votre Docteur</div>
-            <div class="home-subtitle">Continuez votre consultation avec votre docteur</div>
-
-            <div class="home-center">
-              <div class="avatar">YM</div>
-              <div class="doc">
-                <div class="doc-name">YATA Médecin</div>
-                <div class="doc-spec">Cardiologie</div>
-                <button id="startCall" class="primary big" type="button">Démarrer la téléconsultation</button>
-                <div class="muted" id="status">Idle</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="call hidden" id="callView">
-        <div class="call-top">
-          <div class="muted" id="roomInfo">Not connected</div>
-          <div class="controls">
-            <button id="toggleMic" type="button">Mic: on</button>
-            <button id="toggleCam" type="button">Cam: on</button>
-            <button id="toggleStetho" type="button" class="hidden">Stetho: off</button>
-            <button id="leave" type="button">Leave</button>
-          </div>
-        </div>
-
-        <div class="stage">
-          <div class="grid" id="remoteGrid"></div>
-          <div class="local-preview">
-            <div class="local-videos" id="localVideos"></div>
-            <div class="badge" id="identityBadge"></div>
-          </div>
-        </div>
-
-        <details class="debug">
-          <summary>Debug</summary>
-          <pre id="debug"></pre>
-        </details>
-      </section>
-    </main>
-
-    <div class="modal-backdrop hidden" id="settingsBackdrop"></div>
-    <section class="modal hidden" id="settingsModal" aria-modal="true" role="dialog">
-      <div class="modal-header">
-        <div class="modal-title">Paramètres du dispositif</div>
-        <button id="closeSettings" class="icon-btn" type="button" title="Close">✕</button>
-      </div>
-
-      <div class="modal-body">
-        <div class="modal-grid">
-          <div>
-            <div class="section-title">Caméras</div>
-            <div class="device-list" id="cameraList"></div>
-          </div>
-          <div>
-            <div class="section-title">Entrées audio</div>
-            <div class="audio-roles">
-              <label>
-                <span>Micro Patient</span>
-                <select id="patientMicSelect"></select>
-              </label>
-              <label>
-                <span>Micro Stetho</span>
-                <select id="stethoMicSelect"></select>
-              </label>
-            </div>
-            <div class="audio-roles">
-              <label>
-                <span>Preset Stetho</span>
-                <select id="stethoPreset">
-                  <option value="heart">Cœur</option>
-                  <option value="lung">Poumon</option>
-                  <option value="wide">Large bande</option>
-                </select>
-              </label>
-              <label>
-                <span>Notch</span>
-                <select id="stethoNotch">
-                  <option value="50">50 Hz</option>
-                  <option value="60">60 Hz</option>
-                </select>
-              </label>
-            </div>
-            <div class="inline-status hidden" id="audioConfigStatus"></div>
-            <div class="device-list" id="micList"></div>
-            <div class="muted">Max audio tracks: <span id="audioTrackCount">2</span></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button id="refreshDevices" type="button">Refresh</button>
-        <button id="resetDevices" type="button">Reset</button>
-        <div class="spacer"></div>
-        <button id="cancelSettings" type="button">Annuler</button>
-        <button id="saveSettings" class="primary" type="button">Enregistrer</button>
-      </div>
-    </section>
-
-    <script type="module" src="renderer.js"></script>
-  </body>
-</html> -->
 <!doctype html>
 <html lang="fr">
   <head>
@@ -180,17 +55,6 @@
           </div>
         </div>
 
-        <!-- Indicateur de battements cardiaques -->
-        <div class="heartbeat-indicator hidden" id="heartbeatIndicator">
-          <div class="heartbeat-visualizer">
-            <canvas id="heartbeatCanvas" width="200" height="50"></canvas>
-          </div>
-          <div class="heartbeat-stats">
-            <span>BPM: <span id="heartRate">--</span></span>
-            <span>Intensité: <span id="heartIntensity">--</span></span>
-          </div>
-        </div>
-
         <details class="debug">
           <summary>Debug</summary>
           <pre id="debug"></pre>
@@ -237,22 +101,6 @@
                 <select id="stethoNotch">
                   <option value="50">50 Hz</option>
                   <option value="60">60 Hz</option>
-                  <option value="none">Aucun</option>
-                </select>
-              </label>
-            </div>
-            <div class="audio-roles">
-              <label>
-                <span>Sensibilité</span>
-                <input type="range" id="stethoSensitivity" min="1" max="20" value="10" step="1">
-                <span id="sensitivityValue">10</span>
-              </label>
-              <label>
-                <span>Réduction bruit</span>
-                <select id="noiseReduction">
-                  <option value="low">Faible</option>
-                  <option value="medium" selected>Moyen</option>
-                  <option value="high">Fort</option>
                 </select>
               </label>
             </div>

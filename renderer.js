@@ -83,12 +83,51 @@ function saveStethoPreset(v) {
 function getPresetParams() {
   const { preset, notchHz } = loadStethoPreset();
   if (preset === 'lung') {
-    return { preset, notchHz, hp: 100, lp: 1800, gainDb: 12 };
+    return {
+      preset,
+      notchHz,
+      hp: 100,
+      lp: 1800,
+      lowShelfHz: 120,
+      lowShelfGainDb: 6,
+      compThreshold: -34,
+      compKnee: 18,
+      compRatio: 4,
+      compAttack: 0.004,
+      compRelease: 0.22,
+      gainDb: 12,
+    };
   }
   if (preset === 'wide') {
-    return { preset, notchHz, hp: 20, lp: 2000, gainDb: 6 };
+    return {
+      preset,
+      notchHz,
+      hp: 25,
+      lp: 2200,
+      lowShelfHz: 90,
+      lowShelfGainDb: 4,
+      compThreshold: -36,
+      compKnee: 20,
+      compRatio: 3,
+      compAttack: 0.005,
+      compRelease: 0.25,
+      gainDb: 6,
+    };
   }
-  return { preset: 'heart', notchHz, hp: 25, lp: 180, gainDb: 18 };
+  return {
+    preset: 'heart',
+    notchHz,
+    hp: 25,
+    lp: 220,
+    lowShelfHz: 80,
+    lowShelfGainDb: 10,
+    compThreshold: -38,
+    compKnee: 22,
+    compRatio: 6,
+    compAttack: 0.003,
+    compRelease: 0.28,
+    gainDb: 16,
+  };
 }
 
 function applyStethoPresetToGraph() {
@@ -98,6 +137,17 @@ function applyStethoPresetToGraph() {
   stethoGraph.lp.frequency.value = p.lp;
   stethoGraph.notch.frequency.value = p.notchHz;
   stethoGraph.notch2.frequency.value = p.notchHz * 2;
+  if (stethoGraph.lowShelf) {
+    stethoGraph.lowShelf.frequency.value = p.lowShelfHz;
+    stethoGraph.lowShelf.gain.value = p.lowShelfGainDb;
+  }
+  if (stethoGraph.comp) {
+    stethoGraph.comp.threshold.value = p.compThreshold;
+    stethoGraph.comp.knee.value = p.compKnee;
+    stethoGraph.comp.ratio.value = p.compRatio;
+    stethoGraph.comp.attack.value = p.compAttack;
+    stethoGraph.comp.release.value = p.compRelease;
+  }
   stethoGraph.gain.gain.value = Math.pow(10, p.gainDb / 20);
 }
 
@@ -135,6 +185,9 @@ async function buildProcessedStethoTrack(deviceId) {
   notch.type = 'notch';
   const notch2 = stethoAudioContext.createBiquadFilter();
   notch2.type = 'notch';
+  const lowShelf = stethoAudioContext.createBiquadFilter();
+  lowShelf.type = 'lowshelf';
+  const comp = stethoAudioContext.createDynamicsCompressor();
   const gain = stethoAudioContext.createGain();
   const dest = stethoAudioContext.createMediaStreamDestination();
 
@@ -142,10 +195,12 @@ async function buildProcessedStethoTrack(deviceId) {
   hp.connect(notch);
   notch.connect(notch2);
   notch2.connect(lp);
-  lp.connect(gain);
+  lp.connect(lowShelf);
+  lowShelf.connect(comp);
+  comp.connect(gain);
   gain.connect(dest);
 
-  stethoGraph = { src, hp, lp, notch, notch2, gain, dest };
+  stethoGraph = { src, hp, lp, notch, notch2, lowShelf, comp, gain, dest };
   applyStethoPresetToGraph();
 
   stethoProcessedTrack = dest.stream.getAudioTracks()[0] || null;
