@@ -577,18 +577,13 @@ function attachRemoteTrack(track, pub, participant) {
     wrap.dataset.identity = participant.identity;
     if (sid) wrap.dataset.trackSid = sid;
     if (isThumb) {
-      wrap.style.flex = '0 0 200px';
-      wrap.style.width = '200px';
-      wrap.style.maxWidth = '200px';
-      wrap.style.minWidth = '200px';
+      wrap.style.cssText = 'flex:0 0 200px;width:200px;max-width:200px;min-width:200px;border:1px solid rgba(255,255,255,0.12);border-radius:14px;overflow:hidden;position:relative;display:inline-block;';
     }
     const v = track.attach();
     v.autoplay = true;
     v.playsInline = true;
     if (isThumb) {
-      v.style.width = '200px';
-      v.style.height = '112px';
-      v.style.objectFit = 'cover';
+      v.style.cssText = 'width:200px;height:112px;object-fit:cover;display:block;';
     }
     wrap.appendChild(v);
     const lab = document.createElement('div');
@@ -596,15 +591,6 @@ function attachRemoteTrack(track, pub, participant) {
     lab.textContent = participant.identity;
     wrap.appendChild(lab);
     container.appendChild(wrap);
-
-    // Force the thumbs container to be a horizontal row
-    if (isThumb && remoteCartVideos) {
-      remoteCartVideos.style.display = 'flex';
-      remoteCartVideos.style.flexDirection = 'row';
-      remoteCartVideos.style.flexWrap = 'nowrap';
-      remoteCartVideos.style.gap = '10px';
-      remoteCartVideos.style.alignItems = 'flex-start';
-    }
   }
 
   if (track.kind === 'audio') {
@@ -924,18 +910,6 @@ async function joinRoom() {
 
   homeView.classList.add('hidden');
   callView.classList.remove('hidden');
-
-  // Force bottom-bar to horizontal row (inline styles override any CSS issues)
-  const bottomBar = document.querySelector('.bottom-bar');
-  if (bottomBar) {
-    bottomBar.style.display = 'flex';
-    bottomBar.style.flexDirection = 'row';
-    bottomBar.style.flexWrap = 'nowrap';
-    bottomBar.style.gap = '10px';
-    bottomBar.style.alignItems = 'flex-start';
-    bottomBar.style.overflowX = 'auto';
-    bottomBar.style.width = '100%';
-  }
 
   leaveBtn.disabled = false;
   setStatus('Joined');
