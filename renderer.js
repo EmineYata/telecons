@@ -15,7 +15,8 @@ const roomInfo = document.getElementById('roomInfo');
 
 const homeView = document.getElementById('homeView');
 const callView = document.getElementById('callView');
-const remoteGrid = document.getElementById('remoteGrid');
+const remoteVideos = document.getElementById('remoteVideos');
+const remoteAudioDock = document.getElementById('remoteAudioDock');
 
 const openSettingsBtn = document.getElementById('openSettings');
 const settingsModal = document.getElementById('settingsModal');
@@ -525,12 +526,26 @@ function setDebug(obj) {
 function attachRemoteTrack(track, pub, participant) {
   if (!participant || !track) return;
   const sid = pub?.trackSid || pub?.sid || track?.sid || '';
-  const id = `${participant.identity}:${sid || Math.random()}`;
+  const src = pub?.source || '';
+  const id = `${participant.identity}:${sid || track.kind}:${src}`;
+
+  // De-dupe: hydration + TrackSubscribed can both call attach.
+  if (sid) {
+    const existing = (track.kind === 'video' ? remoteVideos : remoteAudioDock)
+      ?.querySelector?.(`[data-track-sid="${CSS.escape(sid)}"][data-identity="${CSS.escape(participant.identity)}"]`);
+    if (existing) return;
+  }
+  const existingById = (track.kind === 'video' ? remoteVideos : remoteAudioDock)
+    ?.querySelector?.(`[data-id="${CSS.escape(id)}"]`);
+  if (existingById) return;
 
   if (track.kind === 'video') {
+    if (!remoteVideos) return;
     const wrap = document.createElement('div');
     wrap.className = 'tile';
     wrap.dataset.id = id;
+    wrap.dataset.identity = participant.identity;
+    if (sid) wrap.dataset.trackSid = sid;
     const v = track.attach();
     v.autoplay = true;
     v.playsInline = true;
@@ -539,23 +554,27 @@ function attachRemoteTrack(track, pub, participant) {
     lab.className = 'label';
     lab.textContent = participant.identity;
     wrap.appendChild(lab);
-    remoteGrid.appendChild(wrap);
+    remoteVideos.appendChild(wrap);
   }
 
   if (track.kind === 'audio') {
+    if (!remoteAudioDock) return;
     const a = track.attach();
     a.autoplay = true;
     a.controls = true;
     a.dataset.id = id;
-    remoteGrid.appendChild(a);
+    a.dataset.identity = participant.identity;
+    if (sid) a.dataset.trackSid = sid;
+    remoteAudioDock.appendChild(a);
   }
 }
 
 function detachRemoteTrack(track, pub, participant) {
   const sid = pub?.trackSid || pub?.sid || track?.sid;
   if (!sid || !participant?.identity) return;
-  const nodes = remoteGrid.querySelectorAll(`[data-id^="${participant.identity}:${sid}"]`);
-  nodes.forEach((n) => n.remove());
+  const sel = `[data-track-sid="${CSS.escape(sid)}"][data-identity="${CSS.escape(participant.identity)}"]`;
+  remoteVideos?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
+  remoteAudioDock?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
 }
 
 function normalizeBaseUrl(s) {
@@ -788,8 +807,9 @@ async function joinRoom() {
 
   room.on(RoomEvent.ParticipantDisconnected, (participant) => {
     if (!participant?.identity) return;
-    const nodes = remoteGrid.querySelectorAll(`[data-id^="${participant.identity}:"]`);
-    nodes.forEach((n) => n.remove());
+    const sel = `[data-identity="${CSS.escape(participant.identity)}"]`;
+    remoteVideos?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
+    remoteAudioDock?.querySelectorAll?.(sel)?.forEach((n) => n.remove());
   });
 
   await room.connect(url, token);
@@ -872,7 +892,8 @@ async function leaveRoom() {
     if (localVideos) localVideos.innerHTML = '';
 
     leaveBtn.disabled = true;
-    remoteGrid.innerHTML = '';
+    if (remoteVideos) remoteVideos.innerHTML = '';
+    if (remoteAudioDock) remoteAudioDock.innerHTML = '';
     callView.classList.add('hidden');
     homeView.classList.remove('hidden');
     setStatus('Left');

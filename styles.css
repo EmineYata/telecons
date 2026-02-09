@@ -217,10 +217,27 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   align-items: start;
 }
 
-#remoteGrid {
+#remoteGrid,
+#remoteVideos {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
+}
+
+.audio-dock {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  border-radius: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.audio-dock audio {
+  width: min(520px, 100%);
 }
 
 .tile {
